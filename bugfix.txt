@@ -16,6 +16,7 @@
 6. 118
     [[Resolve]](promise, x)没有兼顾到x是function的情况 只判断了x!==null && typeof x === 'object'
 
-7.
+7.  0
     对promise的[[Resolve]](promise, x)理解有误,构造函数中的fulfill、reject同样需要遵循该过程
+    不管onFulfill/onReject返回值是不是undefined,都需要执行[Resolve](returnedPromise, x)
 

@@ -27,7 +27,7 @@ const resolve = (aPromise, x) => {
     // reject promise with a TypeError as the reason
     if (aPromise === x) {
         let reason = new TypeError('the value cannot be the same with current promise')
-        privates.reject(reason)
+        aPromise[REJECT](reason)
     }
     // promise A+ spec 2.3.2:
     // If x is a promise, adopt its state
@@ -57,7 +57,7 @@ const resolve = (aPromise, x) => {
         // If retrieving the property x.then results in a thrown exception e,
         // reject promise with e as the reason.
         catch (ex) {
-            aPromise[REJECT](ex)
+            return aPromise[REJECT](ex)
         }
         // If then is a function, call it with x as this,
         // first argument resolvePromise, and second argument rejectPromise, where:
@@ -69,7 +69,7 @@ const resolve = (aPromise, x) => {
             }
             // If/when rejectPromise is called with a reason r, reject promise with r.
             let rejectPromise = (r) => {
-                privates.reject(r)
+                aPromise[REJECT](r)
             }
             // If both resolvePromise and rejectPromise are called,
             // or multiple calls to the same argument are made,
@@ -84,7 +84,7 @@ const resolve = (aPromise, x) => {
                 // If resolvePromise or rejectPromise have been called, ignore it.
                 // Otherwise, reject promise with e as the reason.
                 if (!onceCallArray.isCalled) {
-                    privates.reject(ex)
+                    aPromise[REJECT](ex)
                 }
             }
         }
@@ -127,41 +127,39 @@ const executeContextQueue = (aPromise) => {
                         // promise A+ spec 2.2.7.1:
                         // If either onFulfilled or onRejected returns a value x,
                         // run the Promise Resolution Procedure [[Resolve]](promise2, x).
-                        if ((x = onFulfilled(value)) !== undefined) {
-                            resolve(returnedPromise, x)
-                        }
+                        x = onFulfilled(value)
+                        resolve(returnedPromise, x)
                     }
                     catch (ex) {
                         // promise A+ spec 2.2.7.2:
                         // If either onFulfilled or onRejected throws an exception e,
                         // promise2 must be rejected with e as the reason.
-                        getReject(returnedPromise)(ex)
+                        returnedPromise[REJECT](ex)
                     }
                 }
                 else {
                     // promise A+ spec 2.2.7.3:
                     // If onFulfilled is not a function and promise1 is fulfilled,
                     // promise2 must be fulfilled with the same value as promise1.
-                    getFulfill(returnedPromise)(value)
+                    returnedPromise[FULFILL](value)
                 }
             }
 
             else if (status === STATUS_REJECTED) {
                 if (onRejected) {
                     try {
-                        if ((x = onRejected(reason)) !== undefined) {
-                            resolve(returnedPromise, x)
-                        }
+                        x = onRejected(reason)
+                        resolve(returnedPromise, x)
                     }
                     catch (ex) {
-                        getReject(returnedPromise)(ex)
+                        returnedPromise[REJECT](ex)
                     }
                 }
                 else {
                     // promise A+ spec 2.2.7.4:
                     // If onRejected is not a function and promise1 is rejected,
                     // promise2 must be rejected with the same reason as promise1.
-                    getReject(returnedPromise)(reason)
+                    returnedPromise[REJECT](reason)
                 }
             }
         }
