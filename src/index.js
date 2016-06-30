@@ -3,6 +3,10 @@ import {isFunction, ensureOnceCalled, nextTick} from './util'
 // save APromise private variables
 const PRIVATE = Symbol('private variables')
 
+const FULFILL = Symbol('fulfill')
+
+const REJECT = Symbol('reject')
+
 const STATUS_PENDING = Symbol('pending')
 
 const STATUS_FULFILLED = Symbol('fulfilled')
@@ -12,72 +16,35 @@ const STATUS_REJECTED = Symbol('rejected')
 const NOOP = () => {}
 
 /**
- * generate fulfill method.
- * when fulfill method called, the promise status turn to fulfilled,
- * and execute onFulfilled callbacks when next tick
- */
-const getFulfill = aPromise => {
-
-    let privates = aPromise[PRIVATE]
-
-    if (privates.status !== STATUS_PENDING) {
-        return NOOP
-    }
-
-    return value => {
-        privates.status = STATUS_FULFILLED
-        privates.value = value
-        nextTick(executeContextQueue(aPromise))
-    }
-}
-
-/**
- * generate reject method.
- * when reject method called, the promise status turn to rejected,
- * and execute onRejected callbacks when next tick
- */
-const getReject = (aPromise) => {
-
-    let privates = aPromise[PRIVATE]
-
-    if (privates.status !== STATUS_PENDING) {
-        return NOOP
-    }
-
-    return (reason) => {
-        privates.status = STATUS_REJECTED
-        privates.reason = reason
-        nextTick(executeContextQueue(aPromise))
-    }
-}
-
-/**
  * promise A+ spec 2.3: The Promise Resolution Procedure
  */
 const resolve = (aPromise, x) => {
+
+    let privates = aPromise[PRIVATE]
 
     // promise A+ spec 2.3.1:
     // if promise and x refer to the same object,
     // reject promise with a TypeError as the reason
     if (aPromise === x) {
-        getReject(aPromise)(new TypeError('the returned value cannot be the same with current promise'))
+        let reason = new TypeError('the value cannot be the same with current promise')
+        privates.reject(reason)
     }
     // promise A+ spec 2.3.2:
     // If x is a promise, adopt its state
     else if (x instanceof APromise) {
-        let privates = x[PRIVATE]
+        let xPrivates = x[PRIVATE]
 
         // If x is pending, promise must remain pending until x is fulfilled or rejected.
-        if (privates.status === STATUS_PENDING) {
-            x.then(getFulfill(aPromise), getReject(aPromise))
+        if (xPrivates.status === STATUS_PENDING) {
+            x.then(aPromise[FULFILL].bind(aPromise), aPromise[REJECT].bind(aPromise))
         }
         // If/when x is fulfilled, fulfill promise with the same value.
-        else if (privates.status === STATUS_FULFILLED) {
-            getFulfill(aPromise)(privates.value)
+        else if (xPrivates.status === STATUS_FULFILLED) {
+            aPromise[FULFILL](xPrivates.value)
         }
         // If/when x is rejected, reject promise with the same reason.
-        else if (privates.status === STATUS_REJECTED) {
-            getReject(aPromise)(privates.reason)
+        else if (xPrivates.status === STATUS_REJECTED) {
+            aPromise[REJECT](xPrivates.reason)
         }
     }
     // promise A+ spec 2.3.3:
@@ -90,7 +57,7 @@ const resolve = (aPromise, x) => {
         // If retrieving the property x.then results in a thrown exception e,
         // reject promise with e as the reason.
         catch (ex) {
-            return getReject(aPromise)(ex)
+            aPromise[REJECT](ex)
         }
         // If then is a function, call it with x as this,
         // first argument resolvePromise, and second argument rejectPromise, where:
@@ -98,13 +65,11 @@ const resolve = (aPromise, x) => {
 
             // If/when resolvePromise is called with a value y, run [[Resolve]](promise, y).
             let resolvePromise = (y) => {
-                // if (y !== undefined) {
-                    resolve(aPromise, y)
-                // }
+                resolve(aPromise, y)
             }
             // If/when rejectPromise is called with a reason r, reject promise with r.
             let rejectPromise = (r) => {
-                getReject(aPromise)(r)
+                privates.reject(r)
             }
             // If both resolvePromise and rejectPromise are called,
             // or multiple calls to the same argument are made,
@@ -119,18 +84,24 @@ const resolve = (aPromise, x) => {
                 // If resolvePromise or rejectPromise have been called, ignore it.
                 // Otherwise, reject promise with e as the reason.
                 if (!onceCallArray.isCalled) {
-                    getReject(aPromise)(ex)
+                    privates.reject(ex)
                 }
             }
         }
         // If then is not a function, fulfill promise with x.
         else {
-            getFulfill(aPromise)(x)
+            privates.value = x
+            privates.status = STATUS_FULFILLED
         }
     }
     // If x is not an object or function, fulfill promise with x.
     else {
-        getFulfill(aPromise)(x)
+        privates.value = x
+        privates.status = STATUS_FULFILLED
+    }
+
+    if (privates.status === STATUS_FULFILLED) {
+        nextTick(executeContextQueue(aPromise))
     }
 }
 
@@ -144,8 +115,6 @@ const executeContextQueue = (aPromise) => {
     return () => {
 
         let {status, value, reason, thenContextQueue} = privates
-
-        console.log('src-148:len:', thenContextQueue.length)
 
         for (let context of thenContextQueue) {
 
@@ -222,7 +191,26 @@ export default class APromise {
             thenContextQueue: [],
         }
 
-        resolver(getFulfill(this), getReject(this))
+        resolver(this[FULFILL].bind(this), this[REJECT].bind(this))
+
+    }
+
+    [FULFILL] (value) {
+        let privates = this[PRIVATE]
+        if (privates.status !== STATUS_PENDING) {
+            return NOOP
+        }
+        resolve(this, value)
+    }
+
+    [REJECT] (reason) {
+        let privates = this[PRIVATE]
+        if (privates.status !== STATUS_PENDING) {
+            return NOOP
+        }
+        privates.status = STATUS_REJECTED
+        privates.reason = reason
+        nextTick(executeContextQueue(this))
     }
 
     then (onFulfilled, onRejected) {
@@ -278,10 +266,11 @@ export default class APromise {
         return {
             promise,
             resolve (value) {
-                getFulfill(promise)(value)
+                promise[FULFILL](value)
+
             },
             reject (reason) {
-                getReject(promise)(reason)
+                promise[REJECT](reason)
             }
         }
     }

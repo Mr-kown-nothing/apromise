@@ -13,7 +13,7 @@ var adapter = {
 };
 
 
-var SPEC_TESTER = false
+var SPEC_TESTER = true
 
 if (SPEC_TESTER) {
     promisesAplusTests(adapter, function (err) {
@@ -39,7 +39,7 @@ else {
         console.log('1', value)
 
         return resolved({
-            then: onFulfilled_1 => onFulfilled_1(2333)
+            then: onFulfilled => onFulfilled(2333)
         })
 
     })
