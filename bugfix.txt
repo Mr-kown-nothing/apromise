@@ -1,0 +1,21 @@
+1. 983
+
+2. 662
+    onRejected参数传成了value而不是reason
+    nextTick嵌套了executeContextQueue
+
+3. 658
+    getFulfill/getReject没有判断status是否是pending
+
+4. 584
+    resolve中,把getFulfill(promise)(x)写成getFulfill(promise, x)
+
+5. 120
+    将onceCallArray[1]写成了onceCallArray(1)
+
+6. 118
+    [[Resolve]](promise, x)没有兼顾到x是function的情况 只判断了x!==null && typeof x === 'object'
+
+7.
+    对promise的[[Resolve]](promise, x)理解有误,构造函数中的fulfill、reject同样需要遵循该过程
+
