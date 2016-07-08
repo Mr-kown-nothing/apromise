@@ -239,11 +239,14 @@ export default class APromise {
     /**
      * @TODO
      * implement some handy method that do not belong to the promise A+ spec
-     * catch (ex) {}
      * finally () {}
      * static when (aPromiseArray, callback) {}
      * static race (aPromiseArray, callback) {}
      */
+
+    catch (onReject) {
+        this.then(null, onReject)
+    }
 
     /**
      * quickly get a resolved promise
