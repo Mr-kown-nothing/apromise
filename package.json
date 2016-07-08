@@ -2,7 +2,7 @@
   "name": "apromise",
   "version": "0.1.0",
   "description": "simple promise implement promise-aplus specification",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
     "test": "node test/index.js",
     "build": "babel src --out-dir lib",

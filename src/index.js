@@ -118,7 +118,7 @@ const executeContextQueue = (aPromise) => {
 
         for (let context of thenContextQueue) {
 
-            let {onFulfilled, onRejected, returnedPromise} = context
+            let {onFulfilled, onRejected, thenPromise} = context
             let x
 
             if (status === STATUS_FULFILLED) {
@@ -128,20 +128,20 @@ const executeContextQueue = (aPromise) => {
                         // If either onFulfilled or onRejected returns a value x,
                         // run the Promise Resolution Procedure [[Resolve]](promise2, x).
                         x = onFulfilled(value)
-                        resolve(returnedPromise, x)
+                        resolve(thenPromise, x)
                     }
                     catch (ex) {
                         // promise A+ spec 2.2.7.2:
                         // If either onFulfilled or onRejected throws an exception e,
                         // promise2 must be rejected with e as the reason.
-                        returnedPromise[REJECT](ex)
+                        thenPromise[REJECT](ex)
                     }
                 }
                 else {
                     // promise A+ spec 2.2.7.3:
                     // If onFulfilled is not a function and promise1 is fulfilled,
                     // promise2 must be fulfilled with the same value as promise1.
-                    returnedPromise[FULFILL](value)
+                    thenPromise[FULFILL](value)
                 }
             }
 
@@ -149,17 +149,17 @@ const executeContextQueue = (aPromise) => {
                 if (onRejected) {
                     try {
                         x = onRejected(reason)
-                        resolve(returnedPromise, x)
+                        resolve(thenPromise, x)
                     }
                     catch (ex) {
-                        returnedPromise[REJECT](ex)
+                        thenPromise[REJECT](ex)
                     }
                 }
                 else {
                     // promise A+ spec 2.2.7.4:
                     // If onRejected is not a function and promise1 is rejected,
                     // promise2 must be rejected with the same reason as promise1.
-                    returnedPromise[REJECT](reason)
+                    thenPromise[REJECT](reason)
                 }
             }
         }
@@ -185,7 +185,7 @@ export default class APromise {
             // save the exception when promise is rejected
             reason: undefined,
             // save the context when the then method is called,
-            // a context is a object like {onFulfilled, onRejected, returnedPromise}
+            // a context is a object like {onFulfilled, onRejected, thenPromise}
             thenContextQueue: [],
         }
 
@@ -218,7 +218,7 @@ export default class APromise {
         let context = {}
         // promise A+ spec 2.2.7:
         // then must return a promise
-        let returnedPromise = new APromise(() => {})
+        let thenPromise = new APromise(() => {})
 
         // promise A+ spec 2.2.6:
         // If/when promise is fulfilled(rejected),
@@ -231,9 +231,9 @@ export default class APromise {
         // save the context for next tick usage
         context.onFulfilled = isValidOnFulfilled && onFulfilled
         context.onRejected = isValidOnRejected && onRejected
-        context.returnedPromise = returnedPromise
+        context.thenPromise = thenPromise
         privates.thenContextQueue.push(context)
-        return returnedPromise
+        return thenPromise
     }
 
     /**

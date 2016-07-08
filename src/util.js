@@ -3,25 +3,25 @@ const toString = Object.prototype.toString
 export const isFunction = (obj) => obj && toString.call(obj) === '[object Function]'
 
 /**
- * ensure the function be called only once
- * if more than one functions passed in, only the first function will be called once
+ * ensure the functions be called only once
+ * if more than one functions passed in,
+ * the first call takes precedence, and any further calls are ignored
  */
 export const ensureOnceCalled = (...args) => {
 
-    let isCalled = false
-    let ret = []
-
-    let wrapper = func => (...params) => {
-        if (isCalled) {
+    let wrapper = fn => (...params) => {
+        if (ret.isCalled) {
             return false
         }
-        ret.isCalled = isCalled = true
-        func.apply(null, params)
+        ret.isCalled = true
+        fn.apply(null, params)
     }
 
-    ret = args.map(func => {
-        return wrapper(func)
+    let ret = args.map(fn => {
+        return wrapper(fn)
     })
+
+    ret.isCalled = false
     
     return ret
 }
@@ -43,7 +43,7 @@ export const nextTick = (() => {
         window.addEventListener('message', (event) => {
             let source = event.source
             if ((source === window || source == null) && event.data === 'process-tick') {
-                ev.stopPropagation()
+                event.stopPropagation()
                 if (queue.length > 0) {
                     let fn = queue.shift()
                     fn()
